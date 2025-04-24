@@ -1,23 +1,12 @@
 <#
 .EXAMPLE
-Uses params.json if present:
-  {
-    "tunnelTarget": "root@134.122.65.220",
-    "ipMapping": "0.0.0.0:localhost",
-    "portMapping": "3333:3000",
-    "UI_IP": "192.168.0.235",
-    "LOCAL_UI_PORT": "3000",
-    "TUNNEL_UI_PORT": "3333"
-  }
-
-Fallback:
-  .\server.ps1 -p 3333:3000 -ip 0.0.0.0:localhost -tunnelTarget root@134.122.65.220
+Uses params.json for port/IP config, but always asks for SSH login:
+  .\server.ps1
 #>
 
 param(
     [string]$p,
-    [string]$ip,
-    [string]$tunnelTarget
+    [string]$ip
 )
 
 $ErrorActionPreference = 'Stop'
@@ -39,40 +28,38 @@ if (Test-Path $paramFile) {
         $UI_PORT       = $params.TUNNEL_UI_PORT
         $localUI_PORT  = $params.LOCAL_UI_PORT
         $ip            = $params.ipMapping
-        $tunnelTarget  = $params.tunnelTarget
-
     }
 }
 
-# Fallbacks if still not set
-if (-not $p) { $p = "3333:3000" }
-if (-not $ip) { $ip = "0.0.0.0:localhost" }
+# Fallbacks if not set
+if (-not $UI_PORT -or -not $localUI_PORT) {
+    if (-not $p) { $p = "3333:3000" }
+    $UI_PORT, $localUI_PORT = $p -split ':'
+}
 
-# Parse port and IP
-$UI_PORT, $localUI_PORT = $p -split ':'
+if (-not $ip) { $ip = "0.0.0.0:localhost" }
 $remoteIP, $localIP = $ip -split ':'
 
-Write-Host "Using parameters:"
+# Always ask for SSH login
+Write-Host "`n🟡 SSH login (user@host):"
+do {
+    $sshLogin = Read-Host "Enter SSH login"
+} until ($sshLogin -match '^\S+@\d{1,3}(\.\d{1,3}){3}$')
+
+Write-Host "`nUsing parameters:"
 Write-Host "  UI_PORT       (remote): $UI_PORT"
 Write-Host "  localUI_PORT  (local):  $localUI_PORT"
 Write-Host "  remote IP:              $remoteIP"
 Write-Host "  local IP:               $localIP"
-Write-Host "  tunnel target:          $tunnelTarget`n"
+Write-Host "  SSH login:              $sshLogin`n"
 
 if ((Read-Host "Press Y to continue, anything else to cancel").ToLower() -ne 'y') {
     Write-Host "Aborted."
     exit
 }
 
-if (-not $tunnelTarget) {
-    $tunnelTarget = Read-Host "Enter SSH target (e.g. root@123.45.67.89)"
-}
-if ($tunnelTarget -notmatch '^\S+@\d{1,3}(\.\d{1,3}){3}$') {
-    throw "Invalid format; expected user@IP"
-}
-
-Write-Host "🔐 Testing SSH login to $tunnelTarget ..."
-$check = ssh -o BatchMode=yes -o ConnectTimeout=5 $tunnelTarget 'echo SSH_OK' 2>&1
+Write-Host "🔐 Testing SSH login to $sshLogin ..."
+$check = ssh -o BatchMode=yes -o ConnectTimeout=5 $sshLogin 'echo SSH_OK' 2>&1
 if ($LASTEXITCODE -ne 0 -or $check -notmatch 'SSH_OK') {
     Write-Host "❌ SSH test failed:`n$check"
     exit 1
@@ -80,7 +67,7 @@ if ($LASTEXITCODE -ne 0 -or $check -notmatch 'SSH_OK') {
 Write-Host "✔ SSH login succeeded.`n"
 
 $sshCommand = "ssh -o GatewayPorts=yes -o ServerAliveInterval=30 -N " +
-              "-R $remoteIP`:$UI_PORT`:$localIP`:$localUI_PORT $tunnelTarget"
+              "-R $remoteIP`:$UI_PORT`:$localIP`:$localUI_PORT $sshLogin"
 Write-Host "⚠️  About to run this reverse tunnel:"
 Write-Host $sshCommand "`n"
 

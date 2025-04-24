@@ -9,7 +9,6 @@ users/__pycache__/
 *.png
 *.jpg
 zz_rapit_proto.py
-params.json
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
