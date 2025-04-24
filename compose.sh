@@ -49,8 +49,13 @@ docker compose pull
 export UI_PORT
 export UI_IP
 
-echo "🚀 Starting docker compose with:"
+echo -e "\033[1;33m🚀 Starting docker compose with:\033[0m"
 echo "  UI_IP:   $UI_IP"
 echo "  UI_PORT: $UI_PORT"
 
 docker compose up -d
+
+echo "⏳ Waiting 5 seconds..."
+sleep 5
+
+docker compose ps

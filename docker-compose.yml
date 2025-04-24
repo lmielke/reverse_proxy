@@ -1,13 +1,15 @@
+version: "3.8"
+
 services:
   reverse-proxy:
     image: lmielke/ollama-reverse-proxy:latest
     ports:
-      - "80:80"     # User-facing Open Web UI
+      - "80:80"
     environment:
-      UI_PORT: 3333
-      UI_IP: 172.18.0.1
+      UI_PORT: ${UI_PORT}
+      UI_IP: ${UI_IP}
     healthcheck:
-      test: ["CMD-SHELL", "curl -f http://localhost:80 || exit 1"]
+      test: ["CMD-SHELL", "curl -fs http://localhost:80 | grep -q '<title>Open WebUI</title>'"]
       interval: 10s
       timeout: 5s
       retries: 3
