@@ -42,7 +42,7 @@ Write-Host "  Local IP:             $localIP"
 
 # Preview connection string
 $sshPreview = "ssh -o GatewayPorts=yes -o ServerAliveInterval=30 -N -R " +
-              "$remoteIP:$UI_PORT:$localIP:$localUI_PORT SSH_login"
+              "${remoteIP}:${UI_PORT}:${localIP}:${localUI_PORT} SSH_login"
 Write-Host "`nThis is the connection string:"
 Write-Host $sshPreview
 
