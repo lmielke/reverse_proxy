@@ -12,6 +12,10 @@ if [[ "$(basename "$PWD")" != "reverse_proxy" ]]; then
   fi
 fi
 
+# Pull latest repo changes
+echo "📥 Pulling latest git changes..."
+git pull
+
 # Confirm docker-compose.yml exists
 if [[ ! -f "docker-compose.yml" ]]; then
   echo "❌ docker-compose.yml not found in $(pwd)"
@@ -45,10 +49,7 @@ fi
 echo "🔄 Pulling latest images..."
 UI_PORT=$UI_PORT UI_IP=$UI_IP docker compose pull
 
-# Export and launch
-export UI_PORT
-export UI_IP
-
+# Start
 echo -e "\033[1;33m🚀 Starting docker compose with:\033[0m"
 echo "  UI_IP:   $UI_IP"
 echo "  UI_PORT: $UI_PORT"
