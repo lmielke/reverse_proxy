@@ -34,19 +34,21 @@ if (-not $ip) { $ip = "0.0.0.0:localhost" }
 $remoteIP, $localIP = $ip -split ':'
 
 # Print all config
-Write-Host "`n\033[1;33mNOTE: These are the parameters we will use:\033[0m"
-Write-Host "  Remote (UI_PORT):     $UI_PORT"
-Write-Host "  Local (LOCAL_UI_PORT):$localUI_PORT"
-Write-Host "  Remote IP:            $remoteIP"
-Write-Host "  Local IP:             $localIP"
+Write-Host ""
+Write-Host "NOTE: These are the parameters we will use:"
+Write-Host "  Remote (UI_PORT):      $UI_PORT"
+Write-Host "  Local (LOCAL_UI_PORT): $localUI_PORT"
+Write-Host "  Remote IP:             $remoteIP"
+Write-Host "  Local IP:              $localIP"
 
 # Preview connection string
 $sshPreview = "ssh -o GatewayPorts=yes -o ServerAliveInterval=30 -N -R " +
               "${remoteIP}:${UI_PORT}:${localIP}:${localUI_PORT} SSH_login"
-Write-Host "`nThis is the connection string:"
+Write-Host ""
+Write-Host "This is the connection string:"
 Write-Host $sshPreview
 
-# Single prompt
+# Prompt once
 $sshLogin = Read-Host "`nTo continue, enter the SSH login (e.g. root@1.2.3.4). Press Enter to abort"
 if (-not $sshLogin) {
     Write-Host "Aborted."
@@ -57,6 +59,15 @@ if ($sshLogin -notmatch '^\S+@\d{1,3}(\.\d{1,3}){3}$') {
 }
 
 # Test SSH login
-Write-Host "[SSH] Testing login to $sshLogin ..."
+Write-Host "`n[SSH] Testing login to $sshLogin ..."
 $check = ssh -o BatchMode=yes -o "ConnectTimeout=5" $sshLogin 'echo SSH_OK' 2>&1
+if ($LASTEXITCODE -ne 0 -or $check -notmatch 'SSH_OK') {
+    Write-Host "❌ SSH test failed:`n$check"
+    exit 1
+}
+Write-Host "✔ SSH login succeeded.`n"
 
+# Build SSH tunnel (blocks)
+Write-Host "⚠️  Running SSH reverse tunnel (this terminal will stay open)..."
+& ssh -o GatewayPorts=yes -o ServerAliveInterval=30 -N `
+     -R "${remoteIP}:${UI_PORT}:${localIP}:${localUI_PORT}" $sshLogin
