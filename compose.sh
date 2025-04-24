@@ -38,7 +38,7 @@ fi
 # Stop if container is already running
 if (UI_PORT=$UI_PORT UI_IP=$UI_IP docker compose ps) | grep -q "Up"; then
   echo "⛔ Container running — stopping it first..."
-  docker compose down
+  UI_PORT=$UI_PORT UI_IP=$UI_IP docker compose down
 fi
 
 # Pull latest image
