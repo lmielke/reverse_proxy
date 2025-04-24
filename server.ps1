@@ -57,5 +57,5 @@ if ($sshLogin -notmatch '^\S+@\d{1,3}(\.\d{1,3}){3}$') {
 }
 
 # Test SSH login
-Write-Host "🔐 Testing SSH login to $sshLogin ..."
+Write-Host "[SSH] Testing login to $sshLogin ..."
 $check = ssh -o BatchMode=yes -o ConnectTimeout=
