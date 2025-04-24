@@ -24,13 +24,16 @@ fi
 
 # Load from params.json if available
 if [[ -f "params.json" ]]; then
-  echo "📄 Found params.json:"
+  echo -e "\n📄 Found params.json:"
   cat params.json
+
+  echo -e "\033[1;33m⚠️  Note: Only UI_PORT and UI_IP are used by this script.\033[0m"
 
   read -p "Use these parameters? (Y/N): " use_params
   if [[ "$use_params" =~ ^[Yy]$ ]]; then
     UI_PORT=$(jq -r '.UI_PORT' params.json)
     UI_IP=$(jq -r '.UI_IP' params.json)
+    echo "ℹ️  Using UI_PORT=$UI_PORT and UI_IP=$UI_IP"
   fi
 fi
 
