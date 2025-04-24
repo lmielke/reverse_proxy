@@ -87,8 +87,8 @@ $sshArgs = @(
     $sshLogin
 )
 
-Start-Process -FilePath 'ssh' -ArgumentList $sshArgs `
-              -WindowStyle Hidden -NoNewWindow
+# launch detached tunnel  (remove -NoNewWindow)
+Start-Process -FilePath 'ssh' -ArgumentList $sshArgs -WindowStyle Hidden
 
 Write-Host ("Forwarded  {0}:{1} -> {2}:{3}  (tunnel running detached)." `
             -f $remoteIP,$UI_PORT,$localIP,$localUI_PORT)
