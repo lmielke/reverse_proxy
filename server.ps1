@@ -36,9 +36,11 @@ if (Test-Path $paramFile) {
     $choice = Read-Host "Use these parameters? (Y/N)"
     if ($choice.ToLower() -eq 'y') {
         $params = Get-Content $paramFile | ConvertFrom-Json
-        $p = "${params.TUNNEL_UI_PORT}:${params.LOCAL_UI_PORT}"
-        $ip = $params.ipMapping
-        $tunnelTarget = $params.tunnelTarget
+        $UI_PORT       = $params.TUNNEL_UI_PORT
+        $localUI_PORT  = $params.LOCAL_UI_PORT
+        $ip            = $params.ipMapping
+        $tunnelTarget  = $params.tunnelTarget
+
     }
 }
 
