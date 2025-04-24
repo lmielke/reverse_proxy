@@ -22,7 +22,7 @@ if [[ ! -f "docker-compose.yml" ]]; then
   exit 1
 fi
 
-# Load UI_IP and UI_PORT from params.json if present
+# Load from params.json if available
 if [[ -f "params.json" ]]; then
   echo "📄 Found params.json:"
   cat params.json
@@ -34,7 +34,7 @@ if [[ -f "params.json" ]]; then
   fi
 fi
 
-# Fallback to manual prompt if not set
+# Fallback prompt if UI_PORT not set
 if [[ -z "$UI_PORT" ]]; then
   UI_PORT="$1"
   if [[ -z "$UI_PORT" ]]; then
@@ -46,6 +46,7 @@ if [[ -z "$UI_PORT" ]]; then
   fi
 fi
 
+# Fallback if UI_IP not set
 if [[ -z "$UI_IP" ]]; then
   UI_IP=$(ip addr show docker0 | awk '/inet / {print $2}' | cut -d/ -f1)
   if [[ -z "$UI_IP" ]]; then
@@ -54,24 +55,28 @@ if [[ -z "$UI_IP" ]]; then
   fi
 fi
 
-# Stop if container is already running
-if (UI_PORT=$UI_PORT UI_IP=$UI_IP docker compose ps) | grep -q "Up"; then
+# Create .env for docker-compose
+echo "UI_PORT=$UI_PORT" > .env
+echo "UI_IP=$UI_IP" >> .env
+
+# Stop if container is running
+if docker compose ps | grep -q "Up"; then
   echo "⛔ Container running — stopping it first..."
-  UI_PORT=$UI_PORT UI_IP=$UI_IP docker compose down
+  docker compose down
 fi
 
 # Pull latest image
 echo "🔄 Pulling latest images..."
-UI_PORT=$UI_PORT UI_IP=$UI_IP docker compose pull
+docker compose pull
 
 # Start
 echo -e "\033[1;33m🚀 Starting docker compose with:\033[0m"
 echo "  UI_IP:   $UI_IP"
 echo "  UI_PORT: $UI_PORT"
 
-UI_PORT=$UI_PORT UI_IP=$UI_IP docker compose up -d
+docker compose up -d
 
-echo "⏳ Waiting 5 seconds..."
+echo -e "\033[1;33m⏳ Waiting 5 seconds...\033[0m"
 sleep 5
 
-UI_PORT=$UI_PORT UI_IP=$UI_IP docker compose ps
+docker compose ps
