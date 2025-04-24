@@ -26,27 +26,28 @@ fi
 if [[ -f "params.json" ]]; then
   echo -e "\n📄 Found params.json:"
   cat params.json
-  # Extract only UI_PORT from params.json
-  UI_PORT=$(jq -r '.UI_PORT' params.json)
-  # Always detect UI_IP live from docker0
+
+  UI_PORT=$(jq -r '.TUNNEL_UI_PORT' params.json)
   UI_IP=$(ip addr show docker0 | awk '/inet / {print $2}' | cut -d/ -f1)
-  echo -e "\033[1;33m⚠️  Note: Only UI_PORT and detected docker0 UI_IP are used by this script.\033[0m"
+
+  echo -e "\033[1;33m⚠️  Note: Using only TUNNEL_UI_PORT and docker0 UI_IP.\033[0m"
   echo "🔍 Resolved:"
   echo "  UI_PORT: $UI_PORT"
   echo "  UI_IP:   $UI_IP"
-  read -p "Use these parameters? (Y/N): " use_params
-fi
 
+  read -p "Use these parameters? (Y/N): " use_params
+  if [[ ! "$use_params" =~ ^[Yy]$ ]]; then
+    unset UI_PORT
+    unset UI_IP
+  fi
+fi
 
 # Fallback prompt if UI_PORT not set
 if [[ -z "$UI_PORT" ]]; then
-  UI_PORT="$1"
+  read -p "Enter UI_PORT: " UI_PORT
   if [[ -z "$UI_PORT" ]]; then
-    read -p "Enter UI_PORT: " UI_PORT
-    if [[ -z "$UI_PORT" ]]; then
-      echo "❌ UI_PORT is required."
-      exit 1
-    fi
+    echo "❌ UI_PORT is required."
+    exit 1
   fi
 fi
 
@@ -80,7 +81,7 @@ echo "  UI_PORT: $UI_PORT"
 
 docker compose up -d
 
-echo -e "\033[1;33m⏳ Waiting 5 seconds...\033[0m"
+echo "⏳ Waiting 5 seconds..."
 sleep 5
 
 docker compose ps

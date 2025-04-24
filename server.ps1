@@ -1,16 +1,17 @@
 <#
 .EXAMPLE
-If params.json is present and accepted, its values will be used:
+Uses params.json if present:
   {
     "tunnelTarget": "root@134.122.65.220",
     "ipMapping": "0.0.0.0:localhost",
     "portMapping": "3333:3000",
     "UI_IP": "192.168.0.235",
-    "UI_PORT": "3000"
+    "LOCAL_UI_PORT": "3000",
+    "TUNNEL_UI_PORT": "3333"
   }
 
-Otherwise, fallback values or interactive prompts apply:
-  .\server.ps1 -p 3333:3000 -ip 192.168.0.235:localhost -tunnelTarget root@134.122.65.220
+Fallback:
+  .\server.ps1 -p 3333:3000 -ip 0.0.0.0:localhost -tunnelTarget root@134.122.65.220
 #>
 
 param(
@@ -35,17 +36,17 @@ if (Test-Path $paramFile) {
     $choice = Read-Host "Use these parameters? (Y/N)"
     if ($choice.ToLower() -eq 'y') {
         $params = Get-Content $paramFile | ConvertFrom-Json
-        $p = $params.portMapping
+        $p = "${params.TUNNEL_UI_PORT}:${params.LOCAL_UI_PORT}"
         $ip = $params.ipMapping
         $tunnelTarget = $params.tunnelTarget
     }
 }
 
-# Set fallback defaults if not provided
+# Fallbacks if still not set
 if (-not $p) { $p = "3333:3000" }
 if (-not $ip) { $ip = "0.0.0.0:localhost" }
 
-# Parse port and IP parameters
+# Parse port and IP
 $UI_PORT, $localUI_PORT = $p -split ':'
 $remoteIP, $localIP = $ip -split ':'
 

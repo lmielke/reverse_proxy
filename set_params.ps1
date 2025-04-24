@@ -1,7 +1,7 @@
 # set_params.ps1
 <#
-Prompts for required reverse proxy parameters and saves them to params.json.
-Simplified: Only prompts for essentials and calculates derived values.
+Prompts for reverse proxy parameters and saves them to params.json.
+Includes both LOCAL_UI_PORT and TUNNEL_UI_PORT (used by compose.sh).
 #>
 
 $ErrorActionPreference = 'Stop'
@@ -12,36 +12,39 @@ $params = @{}
 Write-Host "🛠  Reverse Proxy Parameter Setup"
 Write-Host "You'll be asked for a few values. Others will be auto-generated.`n"
 
-# UI_PORT
-Write-Host "🟡 UI_PORT:"
-Write-Host "Port your Open Web UI runs on (default: 3000)"
-$uiPort = Read-Host "Enter UI_PORT (or press Enter to use 3000)"
-if (-not $uiPort) { $uiPort = "3000" }
-$params.UI_PORT = $uiPort
+# LOCAL_UI_PORT
+Write-Host "🟡 LOCAL_UI_PORT:"
+Write-Host "This is the port your Open Web UI runs on locally (default: 3000)"
+$localPort = Read-Host "Enter LOCAL_UI_PORT (or press Enter to use 3000)"
+if (-not $localPort) { $localPort = "3000" }
+$params.LOCAL_UI_PORT = $localPort
 
-# UI_IP
+# TUNNEL_UI_PORT
+Write-Host "`n🟡 TUNNEL_UI_PORT:"
+Write-Host "This is the remote port used for the SSH tunnel (e.g., 3333)"
+do {
+    $remotePort = Read-Host "Enter TUNNEL_UI_PORT"
+} until ($remotePort -match '^\d+$')
+$params.TUNNEL_UI_PORT = $remotePort
+
+# Build portMapping string
+$params.portMapping = "${remotePort}:${localPort}"
+
+# UI_IP (of your local machine)
 Write-Host "`n🟡 UI_IP:"
-Write-Host "IP of the machine running Open Web UI (e.g., 192.168.0.111)"
+Write-Host "This is your local machine IP that the remote host should reach (e.g., 192.168.0.235)"
 do {
     $params.UI_IP = Read-Host "Enter UI_IP"
 } until ($params.UI_IP -match '^\d{1,3}(\.\d{1,3}){3}$')
 
-# Tunnel Target
+# Tunnel target
 Write-Host "`n🟡 SSH Tunnel Target:"
-Write-Host "Remote host for SSH tunnel (e.g., root@123.456.78.9)"
+Write-Host "Format: user@ip (e.g., root@134.122.65.220)"
 do {
     $params.tunnelTarget = Read-Host "Enter SSH tunnel target"
 } until ($params.tunnelTarget -match '^\S+@\d{1,3}(\.\d{1,3}){3}$')
 
-# Tunnel Port (builds portMapping internally)
-Write-Host "`n🟡 Remote Tunnel Port:"
-Write-Host "Port used remotely for SSH reverse tunnel (e.g., 3333)"
-do {
-    $remotePort = Read-Host "Enter SSH tunnel remote port"
-} until ($remotePort -match '^\d+$')
-$params.portMapping = "${remotePort}:${uiPort}"
-
-# IP mapping is fixed
+# IP Mapping is fixed
 $params.ipMapping = "0.0.0.0:localhost"
 
 # Save
