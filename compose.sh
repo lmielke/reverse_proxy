@@ -22,21 +22,36 @@ if [[ ! -f "docker-compose.yml" ]]; then
   exit 1
 fi
 
-# Ask for UI_PORT if not passed
-UI_PORT="$1"
-if [ -z "$UI_PORT" ]; then
-  read -p "Enter UI_PORT: " UI_PORT
-  if [ -z "$UI_PORT" ]; then
-    echo "❌ UI_PORT is required."
-    exit 1
+# Load UI_IP and UI_PORT from params.json if present
+if [[ -f "params.json" ]]; then
+  echo "📄 Found params.json:"
+  cat params.json
+
+  read -p "Use these parameters? (Y/N): " use_params
+  if [[ "$use_params" =~ ^[Yy]$ ]]; then
+    UI_PORT=$(jq -r '.UI_PORT' params.json)
+    UI_IP=$(jq -r '.UI_IP' params.json)
   fi
 fi
 
-# Get docker0 IP
-UI_IP=$(ip addr show docker0 | awk '/inet / {print $2}' | cut -d/ -f1)
-if [ -z "$UI_IP" ]; then
-  echo "❌ Could not determine UI_IP from docker0"
-  exit 1
+# Fallback to manual prompt if not set
+if [[ -z "$UI_PORT" ]]; then
+  UI_PORT="$1"
+  if [[ -z "$UI_PORT" ]]; then
+    read -p "Enter UI_PORT: " UI_PORT
+    if [[ -z "$UI_PORT" ]]; then
+      echo "❌ UI_PORT is required."
+      exit 1
+    fi
+  fi
+fi
+
+if [[ -z "$UI_IP" ]]; then
+  UI_IP=$(ip addr show docker0 | awk '/inet / {print $2}' | cut -d/ -f1)
+  if [[ -z "$UI_IP" ]]; then
+    echo "❌ Could not determine UI_IP from docker0"
+    exit 1
+  fi
 fi
 
 # Stop if container is already running

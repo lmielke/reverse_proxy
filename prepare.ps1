@@ -63,3 +63,7 @@ if ($machineType -eq 'dev') {
 }
 
 Write-Host "All checks passed."
+
+# Run interactive config after all checks
+Write-Host "`n🧩 Running set_params.ps1 to configure reverse proxy params..."
+& "$PSScriptRoot\set_params.ps1"

@@ -3,6 +3,25 @@
               port mapping          IP mapping                      ssh login
 .\server.ps1 -p 3333:3000 -ip 192.168.0.123:localhost -tunnelTarget root@123.45.67.89
 #>
+
+# Load params.json if available
+$paramFile = Join-Path $PSScriptRoot 'params.json'
+$useParams = $false
+
+if (Test-Path $paramFile) {
+    Write-Host "📄 Found params.json:"
+    Get-Content $paramFile | Write-Host
+
+    $choice = Read-Host "Use these parameters? (Y/N)"
+    if ($choice.ToLower() -eq 'y') {
+        $params = Get-Content $paramFile | ConvertFrom-Json
+        $p = $params.portMapping
+        $ip = $params.ipMapping
+        $tunnelTarget = $params.tunnelTarget
+        $useParams = $true
+    }
+}
+
 param(
     [string]$p = "3333:3000",
     [string]$ip = "0.0.0.0:localhost",

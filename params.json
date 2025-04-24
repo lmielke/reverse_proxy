@@ -1,0 +1,7 @@
+{
+  "tunnelTarget": "root@134.122.65.220",
+  "ipMapping": "0.0.0.0:localhost",
+  "portMapping": "3333:3000",
+  "UI_IP": "192.168.0.235",
+  "UI_PORT": "3000"
+}
