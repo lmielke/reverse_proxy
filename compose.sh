@@ -36,14 +36,14 @@ if [ -z "$UI_IP" ]; then
 fi
 
 # Stop if container is already running
-if docker compose ps | grep -q "Up"; then
+if (UI_PORT=$UI_PORT UI_IP=$UI_IP docker compose ps) | grep -q "Up"; then
   echo "⛔ Container running — stopping it first..."
   docker compose down
 fi
 
 # Pull latest image
 echo "🔄 Pulling latest images..."
-docker compose pull
+UI_PORT=$UI_PORT UI_IP=$UI_IP docker compose pull
 
 # Export and launch
 export UI_PORT
@@ -53,9 +53,9 @@ echo -e "\033[1;33m🚀 Starting docker compose with:\033[0m"
 echo "  UI_IP:   $UI_IP"
 echo "  UI_PORT: $UI_PORT"
 
-docker compose up -d
+UI_PORT=$UI_PORT UI_IP=$UI_IP docker compose up -d
 
 echo "⏳ Waiting 5 seconds..."
 sleep 5
 
-docker compose ps
+UI_PORT=$UI_PORT UI_IP=$UI_IP docker compose ps
