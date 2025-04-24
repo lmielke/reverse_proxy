@@ -1,73 +1,86 @@
 <#
-.EXAMPLE
-Uses params.json for tunnel config and prompts once for SSH login:
-  .\server.ps1
+ server.ps1
+ ──────────
+ • Reads LOCAL_UI_PORT, TUNNEL_UI_PORT and ipMapping from params.json (if present)
+ • Always asks once for the SSH-login string  ( user@ip )
+ • Shows the exact SSH command that will be launched
+ • Starts the tunnel **detached** (it keeps running after the script exits)
 #>
 
 param(
-    [string]$p,
-    [string]$ip
+    [string]$p,   # fallback  "TUNNEL:LOCAL"  e.g. 3333:3000
+    [string]$ip   # fallback  "0.0.0.0:localhost"
 )
 
 $ErrorActionPreference = 'Stop'
-$hostname = (hostname).ToLower()
 
-if ($hostname -notin @('while-ai-0','while-ai-1')) {
-    throw "Must run on while-ai-0 or while-ai-1 (current: $hostname)"
+# ── Sanity-check host ────────────────────────────────────────────────────
+$safeHosts = @('while-ai-0','while-ai-1')
+if ( ($env:COMPUTERNAME).ToLower() -notin $safeHosts ) {
+    throw "Must run on while-ai-0 or while-ai-1 (current: $env:COMPUTERNAME)"
 }
 
-# Load from params.json if available
+# ── Load params.json if available ────────────────────────────────────────
 $paramFile = Join-Path $PSScriptRoot 'params.json'
 if (Test-Path $paramFile) {
-    $params = Get-Content $paramFile | ConvertFrom-Json
+    $params        = Get-Content $paramFile | ConvertFrom-Json
     $UI_PORT       = $params.TUNNEL_UI_PORT
     $localUI_PORT  = $params.LOCAL_UI_PORT
     $ip            = $params.ipMapping
 }
 
-# Fallback if no params
+# ── Fallbacks when params.json missing or incomplete ─────────────────────
 if (-not $UI_PORT -or -not $localUI_PORT) {
-    if (-not $p) { $p = "3333:3000" }
+    if (-not $p) { $p = '3333:3000' }
     $UI_PORT, $localUI_PORT = $p -split ':'
 }
-if (-not $ip) { $ip = "0.0.0.0:localhost" }
+if (-not $ip) { $ip = '0.0.0.0:localhost' }
 $remoteIP, $localIP = $ip -split ':'
 
-# Print all config
+# ── Show configuration & expected SSH command ────────────────────────────
 Write-Host ""
-Write-Host "NOTE: These are the parameters we will use:"
-Write-Host "  Remote (UI_PORT):      $UI_PORT"
-Write-Host "  Local (LOCAL_UI_PORT): $localUI_PORT"
-Write-Host "  Remote IP:             $remoteIP"
-Write-Host "  Local IP:              $localIP"
-
-# Preview connection string
-$sshPreview = "ssh -o GatewayPorts=yes -o ServerAliveInterval=30 -N -R " +
-              "${remoteIP}:${UI_PORT}:${localIP}:${localUI_PORT} SSH_login"
+Write-Host "Parameters in use:"
+Write-Host "  Remote UI_PORT       : $UI_PORT"
+Write-Host "  Local  UI_PORT       : $localUI_PORT"
+Write-Host "  Remote bind IP       : $remoteIP"
+Write-Host "  Local  forward host  : $localIP"
 Write-Host ""
-Write-Host "This is the connection string:"
-Write-Host $sshPreview
+$sshPreview = "ssh -o GatewayPorts=yes -o ServerAliveInterval=30 -N " +
+              "-R ${remoteIP}:${UI_PORT}:${localIP}:${localUI_PORT} <SSH_login>"
+Write-Host "SSH command that will be launched:"
+Write-Host "  $sshPreview"
+Write-Host ""
 
-# Prompt once
-$sshLogin = Read-Host "`nTo continue, enter the SSH login (e.g. root@1.2.3.4). Press Enter to abort"
+# ── Prompt once for SSH login string ─────────────────────────────────────
+$sshLogin = Read-Host "Enter SSH login (user@ip) to start tunnel, or press <Enter> to abort"
 if (-not $sshLogin) {
     Write-Host "Aborted."
     exit 0
 }
 if ($sshLogin -notmatch '^\S+@\d{1,3}(\.\d{1,3}){3}$') {
-    throw "Invalid SSH login format (expected user@ip)"
+    throw "Invalid format – expected user@ip"
 }
 
-# Test SSH login
-Write-Host "`n[SSH] Testing login to $sshLogin ..."
-$check = ssh -o BatchMode=yes -o "ConnectTimeout=5" $sshLogin 'echo SSH_OK' 2>&1
-if ($LASTEXITCODE -ne 0 -or $check -notmatch 'SSH_OK') {
-    Write-Host "❌ SSH test failed:`n$check"
-    exit 1
+# ── Quick test of SSH connectivity (5 s timeout) ─────────────────────────
+Write-Host ""
+Write-Host "[*] Testing SSH connectivity..."
+$test = ssh -o BatchMode=yes -o "ConnectTimeout=5" $sshLogin "exit" 2>$null
+if ($LASTEXITCODE -ne 0) {
+    throw "SSH connection failed – check credentials / firewall."
 }
-Write-Host "✔ SSH login succeeded.`n"
+Write-Host "OK – SSH reachable.`n"
 
-# Build SSH tunnel (blocks)
-Write-Host "⚠️  Running SSH reverse tunnel (this terminal will stay open)..."
-& ssh -o GatewayPorts=yes -o ServerAliveInterval=30 -N `
-     -R "${remoteIP}:${UI_PORT}:${localIP}:${localUI_PORT}" $sshLogin
+# ── Build argument list & start detached tunnel ──────────────────────────
+$sshArgs = @(
+    '-o', 'GatewayPorts=yes',
+    '-o', 'ServerAliveInterval=30',
+    '-N',
+    '-R', "${remoteIP}:${UI_PORT}:${localIP}:${localUI_PORT}",
+    $sshLogin
+)
+
+Start-Process -FilePath 'ssh' -ArgumentList $sshArgs `
+              -WindowStyle Hidden -NoNewWindow
+
+Write-Host "Tunnel started in background."
+Write-Host "Forwarded  $remoteIP:$UI_PORT  →  $localIP:$localUI_PORT (local)."
