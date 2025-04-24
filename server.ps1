@@ -1,6 +1,6 @@
 <#
 .EXAMPLE
-Uses params.json for port/IP config, but always asks for SSH login:
+Uses params.json for tunnel config and prompts once for SSH login:
   .\server.ps1
 #>
 
@@ -16,59 +16,46 @@ if ($hostname -notin @('while-ai-0','while-ai-1')) {
     throw "Must run on while-ai-0 or while-ai-1 (current: $hostname)"
 }
 
-# Load from params.json if available and approved
+# Load from params.json if available
 $paramFile = Join-Path $PSScriptRoot 'params.json'
 if (Test-Path $paramFile) {
-    Write-Host "📄 Found params.json:"
-    Get-Content $paramFile | Write-Host
-
-    $choice = Read-Host "Use these parameters? (Y/N)"
-    if ($choice.ToLower() -eq 'y') {
-        $params = Get-Content $paramFile | ConvertFrom-Json
-        $UI_PORT       = $params.TUNNEL_UI_PORT
-        $localUI_PORT  = $params.LOCAL_UI_PORT
-        $ip            = $params.ipMapping
-    }
+    $params = Get-Content $paramFile | ConvertFrom-Json
+    $UI_PORT       = $params.TUNNEL_UI_PORT
+    $localUI_PORT  = $params.LOCAL_UI_PORT
+    $ip            = $params.ipMapping
 }
 
-# Fallbacks if not set
+# Fallback if no params
 if (-not $UI_PORT -or -not $localUI_PORT) {
     if (-not $p) { $p = "3333:3000" }
     $UI_PORT, $localUI_PORT = $p -split ':'
 }
-
 if (-not $ip) { $ip = "0.0.0.0:localhost" }
 $remoteIP, $localIP = $ip -split ':'
 
-# Always ask for SSH login
-Write-Host "`n🟡 SSH login (user@host):"
-do {
-    $sshLogin = Read-Host "Enter SSH login"
-} until ($sshLogin -match '^\S+@\d{1,3}(\.\d{1,3}){3}$')
+# Print all config
+Write-Host "`n\033[1;33mNOTE: These are the parameters we will use:\033[0m"
+Write-Host "  Remote (UI_PORT):     $UI_PORT"
+Write-Host "  Local (LOCAL_UI_PORT):$localUI_PORT"
+Write-Host "  Remote IP:            $remoteIP"
+Write-Host "  Local IP:             $localIP"
 
-Write-Host "`nUsing parameters:"
-Write-Host "  UI_PORT       (remote): $UI_PORT"
-Write-Host "  localUI_PORT  (local):  $localUI_PORT"
-Write-Host "  remote IP:              $remoteIP"
-Write-Host "  local IP:               $localIP"
-Write-Host "  SSH login:              $sshLogin`n"
+# Preview connection string
+$sshPreview = "ssh -o GatewayPorts=yes -o ServerAliveInterval=30 -N -R " +
+              "$remoteIP:$UI_PORT:$localIP:$localUI_PORT SSH_login"
+Write-Host "`nThis is the connection string:"
+Write-Host $sshPreview
 
-if ((Read-Host "Press Y to continue, anything else to cancel").ToLower() -ne 'y') {
+# Single prompt
+$sshLogin = Read-Host "`nTo continue, enter the SSH login (e.g. root@1.2.3.4). Press Enter to abort"
+if (-not $sshLogin) {
     Write-Host "Aborted."
-    exit
+    exit 0
+}
+if ($sshLogin -notmatch '^\S+@\d{1,3}(\.\d{1,3}){3}$') {
+    throw "Invalid SSH login format (expected user@ip)"
 }
 
+# Test SSH login
 Write-Host "🔐 Testing SSH login to $sshLogin ..."
-$check = ssh -o BatchMode=yes -o ConnectTimeout=5 $sshLogin 'echo SSH_OK' 2>&1
-if ($LASTEXITCODE -ne 0 -or $check -notmatch 'SSH_OK') {
-    Write-Host "❌ SSH test failed:`n$check"
-    exit 1
-}
-Write-Host "✔ SSH login succeeded.`n"
-
-$sshCommand = "ssh -o GatewayPorts=yes -o ServerAliveInterval=30 -N " +
-              "-R $remoteIP`:$UI_PORT`:$localIP`:$localUI_PORT $sshLogin"
-Write-Host "⚠️  About to run this reverse tunnel:"
-Write-Host $sshCommand "`n"
-
-Invoke-Expression $sshCommand
+$check = ssh -o BatchMode=yes -o ConnectTimeout=
